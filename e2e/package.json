@@ -1,0 +1,14 @@
+{
+    "name": "e2e",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test": "playwright test",
+        "typecheck": "tsc -p tsconfig.json"
+    },
+    "devDependencies": {
+        "@playwright/test": "^1.63.0",
+        "@modelcontextprotocol/sdk": "^1.30.0",
+        "@types/node": "^26.6.1"
+    }
+}

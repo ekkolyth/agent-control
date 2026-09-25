@@ -1,0 +1,7 @@
+@import 'tailwindcss';
+@import '@ekkolyth/ui/base.css';
+@import '@ekkolyth/ui/themes';
+
+/* the library ships as compiled JS, so its utility classes are invisible to
+ * the default content scan — without this every component renders unstyled */
+@source '../../node_modules/@ekkolyth/ui/dist';

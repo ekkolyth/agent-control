@@ -1,0 +1,101 @@
+{
+    "$schema": "https://biomejs.dev/schemas/2.5.10/schema.json",
+    "assist": {
+        "enabled": true,
+        "actions": {
+            "recommended": true,
+            "source": {
+                "noDuplicateClasses": "on",
+                "organizeImports": "on",
+                "useSortedAttributes": "on",
+                "useSortedInterfaceMembers": "on",
+                "useSortedProperties": "on",
+                "useSortedKeys": "off"
+            }
+        }
+    },
+    "files": {
+        "ignoreUnknown": false,
+        "includes": [
+            "**",
+            "!**/_generated",
+            "!**/routeTree.gen.ts",
+            "!**/vendor"
+        ]
+    },
+    "formatter": {
+        "enabled": true
+    },
+    "linter": {
+        "enabled": true,
+        "includes": ["**", "!**/src/components/ui/**", "!**/vendor"],
+        "rules": {
+            "a11y": {
+                "useSemanticElements": "warn"
+            },
+            "complexity": {
+                "noImportantStyles": "error"
+            },
+            "correctness": {
+                "noChildrenProp": "off"
+            },
+            "style": {
+                "noCommonJs": "error",
+                "noMagicNumbers": "info",
+                "noUselessElse": "error",
+                "useImportType": "off",
+                "noNonNullAssertion": "info",
+                "useFilenamingConvention": {
+                    "level": "error",
+                    "options": {
+                        "filenameCases": ["kebab-case"]
+                    }
+                }
+            }
+        }
+    },
+    "vcs": {
+        "clientKind": "git",
+        "enabled": true,
+        "useIgnoreFile": true
+    },
+    "css": {
+        "assist": {
+            "enabled": true
+        },
+        "formatter": {
+            "indentStyle": "space",
+            "indentWidth": 4,
+            "quoteStyle": "single"
+        },
+        "parser": {
+            "tailwindDirectives": true
+        }
+    },
+    "javascript": {
+        "formatter": {
+            "bracketSameLine": false,
+            "bracketSpacing": true,
+            "indentStyle": "space",
+            "indentWidth": 2,
+            "jsxQuoteStyle": "single",
+            "lineWidth": 80,
+            "quoteProperties": "asNeeded",
+            "quoteStyle": "single",
+            "semicolons": "asNeeded",
+            "trailingCommas": "es5"
+        },
+        "parser": {
+            "unsafeParameterDecoratorsEnabled": true
+        }
+    },
+    "json": {
+        "formatter": {
+            "bracketSpacing": true,
+            "indentStyle": "space",
+            "indentWidth": 4,
+            "lineWidth": 80,
+            "trailingCommas": "none"
+        }
+    }
+}

@@ -1,0 +1,16 @@
+<header>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/tech">Tech</a>
+    <a href="/science">Science</a>
+  </nav>
+</header>
+<main>
+  <h1>Why MV3 workers die</h1>
+  <p>A Manifest V3 background service worker in Chrome is not a persistent process at all, and it dies after thirty seconds without events.</p>
+  <p>Every reconnect has to re-establish socket state, replay any pending heartbeat, and restore the paired tab reference before another command can safely proceed.</p>
+  <img alt="diagram of worker lifecycle">
+  <button type="button">Share</button>
+  <input aria-label="Add a comment">
+</main>
+<footer>© 2026 Example</footer>

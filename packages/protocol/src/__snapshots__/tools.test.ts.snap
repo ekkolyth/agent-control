@@ -1,0 +1,212 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`tools > json schema for every tool is stable 1`] = `
+{
+  "browser_click": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "element": {
+        "description": "Human-readable element description used to obtain permission to interact with the element",
+        "type": "string",
+      },
+      "ref": {
+        "description": "Exact target element reference from the page snapshot",
+        "minLength": 1,
+        "type": "string",
+      },
+    },
+    "required": [
+      "element",
+      "ref",
+    ],
+    "type": "object",
+  },
+  "browser_drag": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "endElement": {
+        "description": "Human-readable target element description used to obtain the permission to interact with the element",
+        "type": "string",
+      },
+      "endRef": {
+        "description": "Exact target element reference from the page snapshot",
+        "minLength": 1,
+        "type": "string",
+      },
+      "startElement": {
+        "description": "Human-readable source element description used to obtain the permission to interact with the element",
+        "type": "string",
+      },
+      "startRef": {
+        "description": "Exact source element reference from the page snapshot",
+        "minLength": 1,
+        "type": "string",
+      },
+    },
+    "required": [
+      "startElement",
+      "startRef",
+      "endElement",
+      "endRef",
+    ],
+    "type": "object",
+  },
+  "browser_get_console_logs": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object",
+  },
+  "browser_go_back": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object",
+  },
+  "browser_go_forward": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object",
+  },
+  "browser_hover": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "element": {
+        "description": "Human-readable element description used to obtain permission to interact with the element",
+        "type": "string",
+      },
+      "ref": {
+        "description": "Exact target element reference from the page snapshot",
+        "minLength": 1,
+        "type": "string",
+      },
+    },
+    "required": [
+      "element",
+      "ref",
+    ],
+    "type": "object",
+  },
+  "browser_navigate": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "url": {
+        "description": "The URL to navigate to",
+        "format": "uri",
+        "type": "string",
+      },
+    },
+    "required": [
+      "url",
+    ],
+    "type": "object",
+  },
+  "browser_press_key": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "key": {
+        "description": "Name of the key to press or a character to generate, such as \`ArrowLeft\` or \`a\`",
+        "minLength": 1,
+        "type": "string",
+      },
+    },
+    "required": [
+      "key",
+    ],
+    "type": "object",
+  },
+  "browser_screenshot": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object",
+  },
+  "browser_select_option": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "element": {
+        "description": "Human-readable element description used to obtain permission to interact with the element",
+        "type": "string",
+      },
+      "ref": {
+        "description": "Exact target element reference from the page snapshot",
+        "minLength": 1,
+        "type": "string",
+      },
+      "values": {
+        "description": "Array of values to select in the dropdown. This can be a single value or multiple values.",
+        "items": {
+          "type": "string",
+        },
+        "minItems": 1,
+        "type": "array",
+      },
+    },
+    "required": [
+      "element",
+      "ref",
+      "values",
+    ],
+    "type": "object",
+  },
+  "browser_snapshot": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {},
+    "type": "object",
+  },
+  "browser_type": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "element": {
+        "description": "Human-readable element description used to obtain permission to interact with the element",
+        "type": "string",
+      },
+      "ref": {
+        "description": "Exact target element reference from the page snapshot",
+        "minLength": 1,
+        "type": "string",
+      },
+      "submit": {
+        "description": "Whether to submit entered text (press Enter after)",
+        "type": "boolean",
+      },
+      "text": {
+        "description": "Text to type into the element",
+        "type": "string",
+      },
+    },
+    "required": [
+      "element",
+      "ref",
+      "text",
+      "submit",
+    ],
+    "type": "object",
+  },
+  "browser_wait": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "time": {
+        "description": "The time to wait in seconds",
+        "exclusiveMinimum": 0,
+        "maximum": 30,
+        "type": "number",
+      },
+    },
+    "required": [
+      "time",
+    ],
+    "type": "object",
+  },
+}
+`;

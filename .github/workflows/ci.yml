@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun run typecheck
+
+      - run: bun run test
+
+      - run: bun run --filter @agent-control/extension build
+
+      - uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('bun.lock') }}
+
+      - run: bunx playwright install --with-deps chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+
+      - run: bun run e2e
