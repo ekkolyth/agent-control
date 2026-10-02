@@ -83,7 +83,7 @@ function main(): void {
     })
   } catch (error) {
     if (!isAddressInUse(error)) throw error
-    log.error({ port: args.port }, 'port already in use')
+    log.info({ port: args.port }, 'failed to bind port')
     process.exit(PORT_IN_USE_EXIT_CODE)
   }
 
