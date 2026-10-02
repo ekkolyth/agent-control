@@ -1,7 +1,7 @@
 import { createApp, loopbackHosts } from './app'
 import { Bridge } from './bridge'
 import { parseArgs } from './config'
-import { createLogger, scope } from './log'
+import { createLogger, type Logger, scope } from './log'
 import { createMcpHandler } from './mcp'
 import { ToolRegistry } from './registry'
 import { registerBrowserTools } from './tools/browser'
@@ -47,17 +47,49 @@ function startServer(opts: StartServerOptions): ServerHandle {
   }
 }
 
+// the macOS app holds this pipe open for its whole life, so EOF means the app
+// is gone — including a force-quit that never got the chance to stop us
+async function exitWhenStdinCloses(
+  server: ServerHandle,
+  log: Logger
+): Promise<void> {
+  for await (const _chunk of Bun.stdin.stream()) {
+    // content is ignored; only the end of the stream matters
+  }
+  log.info('stdin closed, exiting')
+  server.stop()
+  process.exit(0)
+}
+
+// the macOS app turns this status into a readable message, so it is part of
+// the server's launch contract — don't change it without the app
+const PORT_IN_USE_EXIT_CODE = 3
+
+function isAddressInUse(error: unknown): boolean {
+  return (
+    error instanceof Error && 'code' in error && error.code === 'EADDRINUSE'
+  )
+}
+
 function main(): void {
   const log = scope(createLogger({ service: 'agent-control-server' }), 'cli')
   const args = parseArgs(process.argv.slice(2))
 
-  startServer({
-    port: args.port,
-    reconnectGraceMs: args.reconnectGraceMs,
-  })
+  let server: ServerHandle
+  try {
+    server = startServer({
+      port: args.port,
+      reconnectGraceMs: args.reconnectGraceMs,
+    })
+  } catch (error) {
+    if (!isAddressInUse(error)) throw error
+    log.error({ port: args.port }, 'port already in use')
+    process.exit(PORT_IN_USE_EXIT_CODE)
+  }
 
   console.log(`agent-control server on http://127.0.0.1:${args.port}/mcp`)
   log.info({ port: args.port }, 'server listening')
+  if (args.exitOnStdinClose) void exitWhenStdinCloses(server, log)
 
   process.on('unhandledRejection', (reason) => {
     log.error({ error: reason }, 'unhandled rejection')

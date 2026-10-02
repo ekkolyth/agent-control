@@ -6,12 +6,25 @@ describe('parseArgs', () => {
     expect(parseArgs([])).toEqual({
       port: 3660,
       reconnectGraceMs: 3000,
+      exitOnStdinClose: false,
     })
   })
   test('flags', () => {
-    expect(parseArgs(['--port', '9100', '--reconnect-grace', '500'])).toEqual({
-      port: 9100,
-      reconnectGraceMs: 500,
+    expect(
+      parseArgs([
+        '--port',
+        '9100',
+        '--reconnect-grace',
+        '500',
+        '--exit-on-stdin-close',
+      ])
+    ).toEqual({ port: 9100, reconnectGraceMs: 500, exitOnStdinClose: true })
+  })
+  test('--exit-on-stdin-close takes no value', () => {
+    expect(parseArgs(['--exit-on-stdin-close', '--port', '1'])).toEqual({
+      port: 1,
+      reconnectGraceMs: 3000,
+      exitOnStdinClose: true,
     })
   })
   test('unknown flag throws', () => {

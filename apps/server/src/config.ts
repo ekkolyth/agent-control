@@ -4,6 +4,7 @@ const DEFAULT_RECONNECT_GRACE_MS = 3000
 type ParsedArgs = {
   port: number
   reconnectGraceMs: number
+  exitOnStdinClose: boolean
 }
 
 function parseNumericFlag(flag: string, raw: string | undefined): number {
@@ -17,6 +18,7 @@ function parseNumericFlag(flag: string, raw: string | undefined): number {
 function parseArgs(argv: string[]): ParsedArgs {
   let port = DEFAULT_PORT
   let reconnectGraceMs = DEFAULT_RECONNECT_GRACE_MS
+  let exitOnStdinClose = false
 
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i]
@@ -27,12 +29,15 @@ function parseArgs(argv: string[]): ParsedArgs {
       case '--reconnect-grace':
         reconnectGraceMs = parseNumericFlag(flag, argv[++i])
         break
+      case '--exit-on-stdin-close':
+        exitOnStdinClose = true
+        break
       default:
         throw new Error(`unknown flag ${flag}`)
     }
   }
 
-  return { port, reconnectGraceMs }
+  return { port, reconnectGraceMs, exitOnStdinClose }
 }
 
 export type { ParsedArgs }
