@@ -1,3 +1,4 @@
+import type { HealthResponse } from '@agent-control/protocol'
 import { type Context, Hono, type MiddlewareHandler } from 'hono'
 import { upgradeWebSocket, websocket } from 'hono/bun'
 import type { Bridge, BridgeHandle } from './bridge'
@@ -68,7 +69,7 @@ function createApp(deps: AppDeps): { app: Hono; websocket: typeof websocket } {
       extension: bridge.state,
       tab: bridge.tab,
       uptime: Date.now() - startedAt,
-    })
+    } satisfies HealthResponse)
   )
 
   // stateless mode never issues a session, so GET (SSE stream) and DELETE

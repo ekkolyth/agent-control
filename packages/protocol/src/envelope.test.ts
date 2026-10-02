@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import {
+  healthResponseSchema,
   parseExtensionFrame,
   parseServerFrame,
   requestFrameSchema,
@@ -83,5 +84,29 @@ describe('envelope', () => {
         '{"id":"1","type":"click","payload":{"ref":"s1e1","mode":"compact"}}'
       )
     ).toBeNull()
+  })
+})
+
+describe('health response schema', () => {
+  const connected = {
+    extension: 'connected',
+    tab: { id: 42, url: 'https://example.com/', title: 'Example Domain' },
+    uptime: 12345,
+  }
+
+  test('connected with a tab, and disconnected with none, both parse', () => {
+    expect(healthResponseSchema.parse(connected)).toEqual(connected)
+    const disconnected = { extension: 'disconnected', tab: null, uptime: 0 }
+    expect(healthResponseSchema.parse(disconnected)).toEqual(disconnected)
+  })
+
+  test('unknown keys and unknown states are rejected', () => {
+    expect(
+      healthResponseSchema.safeParse({ ...connected, extra: 1 }).success
+    ).toBe(false)
+    expect(
+      healthResponseSchema.safeParse({ ...connected, extension: 'paired' })
+        .success
+    ).toBe(false)
   })
 })

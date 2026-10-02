@@ -35,6 +35,13 @@ const pairedTabSchema = z.strictObject({
 })
 export type PairedTab = z.infer<typeof pairedTabSchema>
 
+const healthResponseSchema = z.strictObject({
+  extension: z.enum(['connected', 'disconnected']),
+  tab: pairedTabSchema.nullable(),
+  uptime: z.number(),
+})
+export type HealthResponse = z.infer<typeof healthResponseSchema>
+
 // pushed, not requested: only the extension knows which tab is paired, and
 // the url and title change under it without the server asking anything
 const tabFrameSchema = z.strictObject({
@@ -79,6 +86,7 @@ function parseExtensionFrame(text: string): ExtensionFrame | null {
 
 export {
   extensionFrameSchema,
+  healthResponseSchema,
   helloFrameSchema,
   pairedTabSchema,
   parseExtensionFrame,

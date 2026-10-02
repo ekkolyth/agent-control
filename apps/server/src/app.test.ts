@@ -1,3 +1,4 @@
+import { healthResponseSchema } from '@agent-control/protocol'
 import type { Hono } from 'hono'
 import { websocket } from 'hono/bun'
 import { afterEach, describe, expect, test, vi } from 'vitest'
@@ -59,10 +60,39 @@ describe('app', () => {
     const s = start(bridge)
     stop = () => s.server.stop(true)
 
-    const body = await (await fetch(`${s.url}/health`)).json()
+    const body = healthResponseSchema.parse(
+      await (await fetch(`${s.url}/health`)).json()
+    )
     expect(body.extension).toBe('disconnected')
     expect(body.tab).toBeNull()
-    expect(typeof body.uptime).toBe('number')
+  })
+
+  test('the frozen health contract sample parses', async () => {
+    const sample = await Bun.file(
+      new URL('../../../testdata/contracts/health.json', import.meta.url)
+    ).json()
+    expect(healthResponseSchema.parse(sample)).toEqual(sample)
+  })
+
+  test('/health matches the health contract with a paired tab', async () => {
+    const bridge = new Bridge({ logger: quietLogger })
+    const s = start(bridge)
+    stop = () => s.server.stop(true)
+
+    const tab = { id: 42, url: 'https://example.com/', title: 'Example Domain' }
+    const socket = await open(s.ws)
+    socket.send(JSON.stringify({ type: 'hello', extensionVersion: '0.0.1' }))
+    socket.send(JSON.stringify({ type: 'tab', tab }))
+    await vi.waitFor(() => expect(bridge.tab).toEqual(tab))
+
+    const body = healthResponseSchema.parse(
+      await (await fetch(`${s.url}/health`)).json()
+    )
+    expect(body).toMatchObject({ extension: 'connected', tab })
+
+    const closed = nextClose(socket)
+    socket.close()
+    await closed
   })
 
   test('a first frame that is not a hello is closed with 4001; a hello connects', async () => {

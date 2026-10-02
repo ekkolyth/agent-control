@@ -1,0 +1,9 @@
+{
+    "extension": "connected",
+    "tab": {
+        "id": 42,
+        "url": "https://example.com/",
+        "title": "Example Domain"
+    },
+    "uptime": 12345
+}
