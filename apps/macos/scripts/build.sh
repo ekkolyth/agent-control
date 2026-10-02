@@ -17,8 +17,9 @@ SERVER_BIN="$REPO_ROOT/apps/server/dist/agent-control-server"
 
 cd "$MACOS_DIR"
 swift test
-swift build -c release --arch arm64
-SWIFT_BIN="$(swift build -c release --arch arm64 --show-bin-path)/AgentControl"
+RELEASE_FLAGS=(-c release --arch arm64)
+swift build "${RELEASE_FLAGS[@]}"
+SWIFT_BIN="$(swift build "${RELEASE_FLAGS[@]}" --show-bin-path)/AgentControl"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS"
