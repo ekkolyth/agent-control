@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import type { Subprocess } from 'bun'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 describe('module import', () => {
@@ -49,16 +50,16 @@ async function waitForListening(stdout: ReadableStream<Uint8Array>) {
   reader.releaseLock()
 }
 
-describe('--exit-on-stdin-close', () => {
-  const children: ReturnType<typeof spawnCli>[] = []
-  // a red run times out with the child still listening; never leave it behind
-  afterEach(async () => {
-    for (const child of children.splice(0)) {
-      child.kill()
-      await child.exited
-    }
-  })
+const children: Pick<Subprocess, 'kill' | 'exited'>[] = []
+// a red run times out with the child still listening; never leave it behind
+afterEach(async () => {
+  for (const child of children.splice(0)) {
+    child.kill()
+    await child.exited
+  }
+})
 
+describe('--exit-on-stdin-close', () => {
   test('the server exits 0 when stdin closes', async () => {
     const child = spawnCli(['--exit-on-stdin-close'])
     children.push(child)
@@ -95,6 +96,7 @@ describe('port already in use', () => {
           env: { ...process.env, LOG_LEVEL: 'silent' },
         }
       )
+      children.push(child)
       expect(await child.exited).toBe(PORT_IN_USE_EXIT_CODE)
     } finally {
       holder.stop(true)
