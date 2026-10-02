@@ -22,6 +22,31 @@ final class ServerProcessTests: XCTestCase {
         return url
     }
 
+    private struct LaunchContract: Decodable {
+        struct Flags: Decodable {
+            let port: String
+            let exitOnStdinClose: String
+        }
+
+        struct ExitCodes: Decodable {
+            let portInUse: Int32
+        }
+
+        let flags: Flags
+        let exitCodes: ExitCodes
+    }
+
+    private func launchContract() throws -> LaunchContract {
+        let repoRoot = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sample = repoRoot.appendingPathComponent("testdata/contracts/launch.json")
+        return try JSONDecoder().decode(LaunchContract.self, from: Data(contentsOf: sample))
+    }
+
     private func read(_ name: String) -> String {
         (try? String(contentsOf: dir.appendingPathComponent(name), encoding: .utf8)) ?? ""
     }
@@ -74,6 +99,7 @@ final class ServerProcessTests: XCTestCase {
     }
 
     func testPassesTheLaunchContract() async throws {
+        let flags = try launchContract().flags
         let args = dir.appendingPathComponent("args").path
         let exe = try script("echo \"$@ LOG_PRETTY=$LOG_PRETTY\" > '\(args)'\nexec sleep 30\n")
         let server = ServerProcess(executableURL: exe, logURL: dir.appendingPathComponent("server.log"))
@@ -81,9 +107,17 @@ final class ServerProcessTests: XCTestCase {
         try await waitUntil(timeout: 2) { !self.read("args").isEmpty }
         XCTAssertEqual(
             read("args").trimmingCharacters(in: .whitespacesAndNewlines),
-            "--port 4242 --exit-on-stdin-close LOG_PRETTY=false"
+            "\(flags.port) 4242 \(flags.exitOnStdinClose) LOG_PRETTY=false"
         )
         server.stop()
+    }
+
+    func testPortInUseExitStatusMatchesTheLaunchContract() throws {
+        XCTAssertEqual(ServerProcess.portInUseExitStatus, try launchContract().exitCodes.portInUse)
+        XCTAssertTrue(ServerProcess.State.crashed(exitStatus: 3).isPortInUse)
+        XCTAssertFalse(ServerProcess.State.crashed(exitStatus: 1).isPortInUse)
+        XCTAssertFalse(ServerProcess.State.crashed(exitStatus: nil).isPortInUse)
+        XCTAssertFalse(ServerProcess.State.running.isPortInUse)
     }
 
     func testStopEscalatesToSigkillAfterTwoSeconds() async throws {

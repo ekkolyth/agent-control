@@ -38,7 +38,13 @@ public final class ServerProcess {
         case running
         // nil when Process.run() itself threw
         case crashed(exitStatus: Int32?)
+
+        public var isPortInUse: Bool {
+            self == .crashed(exitStatus: ServerProcess.portInUseExitStatus)
+        }
     }
+
+    public static let portInUseExitStatus: Int32 = 3
 
     public private(set) var state: State = .stopped {
         didSet {

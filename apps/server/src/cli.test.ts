@@ -22,12 +22,14 @@ describe('module import', () => {
 })
 
 const STAYS_RUNNING_WAIT_MS = 500
-const PORT_IN_USE_EXIT_CODE = 3
+const { flags, exitCodes } = await Bun.file(
+  new URL('../../../testdata/contracts/launch.json', import.meta.url)
+).json()
 const serverDir = fileURLToPath(new URL('..', import.meta.url))
 
 function spawnCli(extraArgs: string[]) {
   return Bun.spawn(
-    [process.execPath, 'src/cli.ts', '--port', '0', ...extraArgs],
+    [process.execPath, 'src/cli.ts', flags.port, '0', ...extraArgs],
     {
       cwd: serverDir,
       stdin: 'pipe',
@@ -61,7 +63,7 @@ afterEach(async () => {
 
 describe('--exit-on-stdin-close', () => {
   test('the server exits 0 when stdin closes', async () => {
-    const child = spawnCli(['--exit-on-stdin-close'])
+    const child = spawnCli([flags.exitOnStdinClose])
     children.push(child)
     await waitForListening(child.stdout)
     child.stdin.end()
@@ -87,7 +89,7 @@ describe('port already in use', () => {
     })
     try {
       const child = Bun.spawn(
-        [process.execPath, 'src/cli.ts', '--port', String(holder.port)],
+        [process.execPath, 'src/cli.ts', flags.port, String(holder.port)],
         {
           cwd: serverDir,
           stdin: 'ignore',
@@ -97,7 +99,7 @@ describe('port already in use', () => {
         }
       )
       children.push(child)
-      expect(await child.exited).toBe(PORT_IN_USE_EXIT_CODE)
+      expect(await child.exited).toBe(exitCodes.portInUse)
     } finally {
       holder.stop(true)
     }

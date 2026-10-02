@@ -1,0 +1,9 @@
+{
+    "flags": {
+        "port": "--port",
+        "exitOnStdinClose": "--exit-on-stdin-close"
+    },
+    "exitCodes": {
+        "portInUse": 3
+    }
+}

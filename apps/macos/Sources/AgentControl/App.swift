@@ -117,8 +117,10 @@ struct MenuContent: View {
         case .stopped: return "Server stopped"
         case .starting: return "Server starting"
         case .running: return model.health == nil ? "Server not responding" : "Server running"
-        case .crashed(exitStatus: 3?): return "Port \(model.settings.port) is already in use"
-        case .crashed: return "The server stopped unexpectedly"
+        case .crashed:
+            return model.serverState.isPortInUse
+                ? "Port \(model.settings.port) is already in use"
+                : "The server stopped unexpectedly"
         }
     }
 
