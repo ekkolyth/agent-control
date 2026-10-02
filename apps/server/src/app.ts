@@ -2,7 +2,7 @@ import type { HealthResponse } from '@agent-control/protocol'
 import { type Context, Hono, type MiddlewareHandler } from 'hono'
 import { upgradeWebSocket, websocket } from 'hono/bun'
 import type { Bridge, BridgeHandle } from './bridge'
-import { createLogger, type Logger } from './log'
+import { createLogger, type Logger, scope } from './log'
 import { createRequestLogger } from './request-log'
 
 type AppDeps = {
@@ -31,6 +31,23 @@ function rejectForeignHost(allowedHosts: readonly string[]): MiddlewareHandler {
   }
 }
 
+const EXTENSION_ORIGIN_SCHEMES = ['chrome-extension://', 'moz-extension://']
+
+// browsers always send Origin on a WebSocket handshake, so a missing one
+// can't be a web page; a present one must be an extension's own
+function rejectWebPageOrigin(): MiddlewareHandler {
+  return async (c, next) => {
+    const origin = c.req.header('origin')
+    if (
+      origin !== undefined &&
+      !EXTENSION_ORIGIN_SCHEMES.some((scheme) => origin.startsWith(scheme))
+    ) {
+      return c.json({ error: 'invalid origin' }, 403)
+    }
+    await next()
+  }
+}
+
 function createApp(deps: AppDeps): { app: Hono; websocket: typeof websocket } {
   const { bridge, mcp, allowedHosts } = deps
   const startedAt = deps.startedAt ?? Date.now()
@@ -39,6 +56,24 @@ function createApp(deps: AppDeps): { app: Hono; websocket: typeof websocket } {
   const app = new Hono()
 
   app.use('*', createRequestLogger(logger))
+  // the request logger skips /ws, so a refusal is logged here
+  const httpLog = scope(logger, 'http')
+  app.use('/ws', async (c, next) => {
+    await next()
+    if (c.res.status === 403) {
+      httpLog.warn(
+        {
+          method: c.req.method,
+          path: c.req.path,
+          host: c.req.header('host'),
+          origin: c.req.header('origin'),
+          status: 403,
+        },
+        'request completed'
+      )
+    }
+  })
+  app.use('/ws', rejectForeignHost(allowedHosts), rejectWebPageOrigin())
   app.use('/health', rejectForeignHost(allowedHosts))
   app.use('/mcp', rejectForeignHost(allowedHosts))
 

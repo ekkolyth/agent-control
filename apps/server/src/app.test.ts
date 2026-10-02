@@ -33,9 +33,18 @@ function start(bridge: Bridge) {
   }
 }
 
-function open(url: string) {
+// the DOM lib's WebSocket typing shadows Bun's constructor overload that
+// takes handshake headers
+const HeaderWebSocket = WebSocket as unknown as new (
+  url: string,
+  options: { headers: Record<string, string> }
+) => WebSocket
+
+function open(url: string, headers?: Record<string, string>) {
   return new Promise<WebSocket>((resolve, reject) => {
-    const socket = new WebSocket(url)
+    const socket = headers
+      ? new HeaderWebSocket(url, { headers })
+      : new WebSocket(url)
     socket.onopen = () => resolve(socket)
     socket.onerror = reject
   })
@@ -170,6 +179,76 @@ describe('app', () => {
       status: 403,
     })
   })
+
+  test('a web-page Origin cannot take over a connected extension', async () => {
+    const bridge = new Bridge({ logger: quietLogger })
+    const s = start(bridge)
+    stop = () => s.server.stop(true)
+
+    const original = await open(s.ws)
+    original.send(JSON.stringify({ type: 'hello', extensionVersion: '0.0.1' }))
+    await vi.waitFor(() => expect(bridge.state).toBe('connected'))
+    const originalClosed = vi.fn()
+    original.onclose = originalClosed
+
+    await expect(
+      open(s.ws, { Origin: 'https://evil.example' })
+    ).rejects.toBeDefined()
+
+    expect(bridge.state).toBe('connected')
+    expect(originalClosed).not.toHaveBeenCalled()
+    expect(original.readyState).toBe(WebSocket.OPEN)
+
+    const closed = nextClose(original)
+    original.close()
+    await closed
+  })
+
+  test('a refused /ws Origin is logged at warn with the origin it carried', async () => {
+    const s = start(new Bridge({ logger: quietLogger }))
+    stop = () => s.server.stop(true)
+
+    await open(s.ws, { Origin: 'https://evil.example' }).catch(() => {})
+
+    const [line] = parseLogLines(destination.lines)
+    expect(line).toMatchObject({
+      level: 40,
+      path: '/ws',
+      origin: 'https://evil.example',
+      status: 403,
+    })
+  })
+
+  test('a foreign Host is refused on /ws', async () => {
+    const bridge = new Bridge({ logger: quietLogger })
+    const s = start(bridge)
+    stop = () => s.server.stop(true)
+
+    await expect(
+      open(s.ws, { Host: `attacker.example:${s.server.port}` })
+    ).rejects.toBeDefined()
+    expect(bridge.state).toBe('disconnected')
+  })
+
+  test.each([
+    'chrome-extension://abcdefghijklmnop',
+    'moz-extension://abcdefgh-1234',
+  ])(
+    '/ws accepts the extension Origin %s and a hello promotes',
+    async (origin) => {
+      const bridge = new Bridge({ logger: quietLogger })
+      const s = start(bridge)
+      stop = () => s.server.stop(true)
+
+      const socket = await open(s.ws, { Origin: origin })
+      socket.send(JSON.stringify({ type: 'hello', extensionVersion: '0.0.1' }))
+      await vi.waitFor(() => expect(bridge.state).toBe('connected'))
+
+      const closed = nextClose(socket)
+      socket.close()
+      await closed
+    }
+  )
 
   test('mcp returns 503 when not configured', async () => {
     const s = start(new Bridge({ logger: quietLogger }))
