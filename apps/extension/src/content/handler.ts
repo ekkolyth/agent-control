@@ -21,7 +21,26 @@ function centerPoint(element: Element): { x: number; y: number } {
     behavior: 'instant',
   })
   const rect = element.getBoundingClientRect()
-  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+  let x = rect.left + rect.width / 2
+  let y = rect.top + rect.height / 2
+  // the rect is relative to the element's own frame; CDP clicks in top-level
+  // viewport coordinates, so add each enclosing iframe's content-box origin
+  let frame = element.ownerDocument.defaultView?.frameElement ?? null
+  while (frame) {
+    const frameRect = frame.getBoundingClientRect()
+    const style = getComputedStyle(frame)
+    x +=
+      frameRect.left + frame.clientLeft + Number.parseFloat(style.paddingLeft)
+    y += frameRect.top + frame.clientTop + Number.parseFloat(style.paddingTop)
+    frame = frame.ownerDocument.defaultView?.frameElement ?? null
+  }
+  return { x, y }
+}
+
+// an element inside an iframe belongs to that frame's realm, so instanceof
+// has to check against its own window's constructors, not this script's
+function realmOf(element: Element): Window & typeof globalThis {
+  return element.ownerDocument.defaultView ?? window
 }
 
 function setNativeValue(
@@ -32,10 +51,11 @@ function setNativeValue(
   // not its JavaScript objects, so a page-side value tracker (React's or
   // otherwise) is unreachable from here, and this assignment already goes
   // through the native setter
+  const realm = realmOf(element)
   const proto =
-    element instanceof HTMLTextAreaElement
-      ? HTMLTextAreaElement.prototype
-      : HTMLInputElement.prototype
+    element instanceof realm.HTMLTextAreaElement
+      ? realm.HTMLTextAreaElement.prototype
+      : realm.HTMLInputElement.prototype
   Object.getOwnPropertyDescriptor(proto, 'value')!.set!.call(element, value)
 }
 
@@ -68,9 +88,10 @@ async function dispatch(
         return { ok: false, code: resolved.code, message: resolved.message }
       }
       const { element } = resolved
+      const realm = realmOf(element)
       if (
-        element instanceof HTMLInputElement ||
-        element instanceof HTMLTextAreaElement
+        element instanceof realm.HTMLInputElement ||
+        element instanceof realm.HTMLTextAreaElement
       ) {
         setNativeValue(element, '')
       } else if (element.matches('[contenteditable]')) {
@@ -92,7 +113,7 @@ async function dispatch(
         return { ok: false, code: resolved.code, message: resolved.message }
       }
       const { element } = resolved
-      if (!(element instanceof HTMLSelectElement)) {
+      if (!(element instanceof realmOf(element).HTMLSelectElement)) {
         return {
           ok: false,
           code: 'INTERNAL',

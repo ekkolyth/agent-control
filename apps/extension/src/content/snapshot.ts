@@ -5,6 +5,7 @@ import {
 } from './vendor/playwright/injected/ariaSnapshot'
 import { isElementVisible } from './vendor/playwright/injected/domUtils'
 import type {
+  AriaNode,
   AriaNodeJSON,
   AriaSnapshotJSON,
 } from './vendor/playwright/isomorphic/ariaSnapshot'
@@ -210,15 +211,43 @@ function hashPage(url: string, yaml: string): string {
   return (hash >>> 0).toString(16).padStart(8, '0')
 }
 
+function collectIframeNodes(node: AriaNode, out: AriaNode[]): AriaNode[] {
+  for (const child of node.children) {
+    if (typeof child === 'string') continue
+    if (child.role === 'iframe') out.push(child)
+    else collectIframeNodes(child, out)
+  }
+  return out
+}
+
+// splices each same-origin iframe's tree under its iframe node, so refs
+// inside course players and embedded forms resolve like any other;
+// cross-origin frames have a null contentDocument and stay a bare node
+function snapshotDocument(doc: Document): AriaSnapshot {
+  const snapshot = generateAriaTree(doc.documentElement, {
+    mode: 'ai',
+    refPrefix: getRefPrefix(),
+  })
+  for (const iframeNode of collectIframeNodes(snapshot.root, [])) {
+    const frame = iframeNode.ref && snapshot.info.get(iframeNode.ref)?.element
+    const frameDoc = frame
+      ? (frame as HTMLIFrameElement | HTMLFrameElement).contentDocument
+      : null
+    if (!frameDoc?.documentElement) continue
+    const inner = snapshotDocument(frameDoc)
+    iframeNode.children.push(...inner.root.children)
+    for (const [ref, info] of inner.info) snapshot.info.set(ref, info)
+    for (const [element, ref] of inner.refs) snapshot.refs.set(element, ref)
+  }
+  return snapshot
+}
+
 function generateSnapshot(
   doc: Document,
   opts: { mode: SnapshotMode; maxChars?: number }
 ): SnapshotResult {
   const maxChars = opts.maxChars ?? DEFAULT_MAX_CHARS
-  const snapshot = generateAriaTree(doc.documentElement, {
-    mode: 'ai',
-    refPrefix: getRefPrefix(),
-  })
+  const snapshot = snapshotDocument(doc)
   currentSnapshot = snapshot
   for (const ref of snapshot.info.keys()) {
     const match = REF_PATTERN.exec(ref)
