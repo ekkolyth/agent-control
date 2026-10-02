@@ -94,6 +94,39 @@ final class ServerProcessTests: XCTestCase {
         XCTAssertEqual(server.state, .stopped)
     }
 
+    func testStopThenStartIgnoresTheOldChildsExit() async throws {
+        let counter = dir.appendingPathComponent("launches").path
+        let pids = dir.appendingPathComponent("pids").path
+        let exe = try script("echo x >> '\(counter)'\necho $$ >> '\(pids)'\nexec sleep 30\n")
+        let server = ServerProcess(executableURL: exe, logURL: dir.appendingPathComponent("server.log"))
+        // a failed run must not leave stand-ins behind
+        addTeardownBlock { [dir] in
+            let text = (try? String(contentsOf: dir!.appendingPathComponent("pids"), encoding: .utf8)) ?? ""
+            for pid in text.split(separator: "\n").compactMap({ Int32($0) }) {
+                kill(pid, SIGKILL)
+            }
+        }
+
+        server.start(port: 1)
+        try await waitUntil(timeout: 2) { self.launches() == 1 }
+        server.stop()
+        server.start(port: 1)
+        try await waitUntil(timeout: 2) { self.launches() == 2 }
+
+        // the old child's termination lands after the restart; backoff is 1s
+        try await Task.sleep(for: .milliseconds(1500))
+        XCTAssertEqual(launches(), 2, "no restart from the old child's exit")
+        XCTAssertEqual(server.state, .running)
+
+        server.stop()
+        XCTAssertEqual(server.state, .stopped)
+        let pidList = read("pids").split(separator: "\n").compactMap { Int32($0) }
+        XCTAssertEqual(pidList.count, 2)
+        for pid in pidList {
+            XCTAssertEqual(kill(pid, 0), -1, "child \(pid) survived stop()")
+        }
+    }
+
     func testStopDuringBackoffPreventsTheRestart() async throws {
         let counter = dir.appendingPathComponent("launches").path
         let exe = try script("echo x >> '\(counter)'\nexit 1\n")

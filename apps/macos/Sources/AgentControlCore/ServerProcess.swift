@@ -56,6 +56,8 @@ public final class ServerProcess {
     // held for the child's lifetime; the server exits when it closes
     private var stdinPipe: Pipe?
     private var stopping = false
+    // a Process address can be reused after stop() then start(), so exits are matched by launch number
+    private var generation = 0
     private var exitTimes: [Date] = []
     private var restartTask: Task<Void, Never>?
 
@@ -102,6 +104,8 @@ public final class ServerProcess {
 
     private func launch() {
         state = .starting
+        generation += 1
+        let launchGeneration = generation
 
         let writer = logWriter ?? LogWriter(url: logURL)
         logWriter = writer
@@ -128,11 +132,10 @@ public final class ServerProcess {
             }
         }
 
-        let childID = ObjectIdentifier(child)
         child.terminationHandler = { [weak self] exited in
             let status = exited.terminationStatus
             Task { @MainActor in
-                self?.handleExit(of: childID, status: status)
+                self?.handleExit(ofLaunch: launchGeneration, status: status)
             }
         }
 
@@ -147,9 +150,9 @@ public final class ServerProcess {
         state = .running
     }
 
-    private func handleExit(of childID: ObjectIdentifier, status: Int32) {
-        guard !stopping, let process, ObjectIdentifier(process) == childID else { return }
-        self.process = nil
+    private func handleExit(ofLaunch launchGeneration: Int, status: Int32) {
+        guard !stopping, process != nil, launchGeneration == generation else { return }
+        process = nil
         stdinPipe = nil
 
         let now = Date()
