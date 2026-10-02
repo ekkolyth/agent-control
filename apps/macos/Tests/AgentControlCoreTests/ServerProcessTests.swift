@@ -46,8 +46,14 @@ final class ServerProcessTests: XCTestCase {
         server.onStateChange = { seen.append($0) }
 
         server.start(port: 3660)
-        try await Task.sleep(for: .milliseconds(500))
-        XCTAssertEqual(launches(), 1, "first restart waits 1s")
+        try await waitUntil(timeout: 2) { self.launches() >= 1 }
+        let firstLaunch = Date()
+        try await waitUntil(timeout: 4) { self.launches() >= 2 }
+        let secondLaunch = Date()
+        try await waitUntil(timeout: 6) { self.launches() >= 3 }
+        let thirdLaunch = Date()
+        XCTAssertGreaterThanOrEqual(secondLaunch.timeIntervalSince(firstLaunch), 0.9, "first restart waits 1s")
+        XCTAssertGreaterThanOrEqual(thirdLaunch.timeIntervalSince(secondLaunch), 1.5, "second restart waits 2s")
         try await waitUntil(timeout: 8) { server.state == .crashed(exitStatus: 3) }
         XCTAssertEqual(launches(), 3)
         XCTAssertEqual(seen.last, .crashed(exitStatus: 3))
@@ -82,16 +88,28 @@ final class ServerProcessTests: XCTestCase {
 
     func testStopEscalatesToSigkillAfterTwoSeconds() async throws {
         let ready = dir.appendingPathComponent("ready").path
-        let exe = try script("trap '' TERM\necho x > '\(ready)'\nwhile true; do sleep 0.1; done\n")
+        let pidFile = dir.appendingPathComponent("pid").path
+        let exe = try script("trap '' TERM\necho $$ > '\(pidFile)'\necho x > '\(ready)'\nwhile true; do sleep 0.1; done\n")
         let server = ServerProcess(executableURL: exe, logURL: dir.appendingPathComponent("server.log"))
         server.start(port: 1)
         // .running only means the process spawned; wait until the trap is installed
         try await waitUntil(timeout: 2) { !self.read("ready").isEmpty }
+        let pid = try XCTUnwrap(Int32(read("pid").trimmingCharacters(in: .whitespacesAndNewlines)))
+
+        // stop() blocks the main actor; if escalation regresses this frees it so the test fails instead of hanging
+        let watchdog = Task.detached {
+            try? await Task.sleep(for: .seconds(4))
+            kill(pid, SIGKILL)
+        }
+        defer { watchdog.cancel() }
 
         let began = Date()
         server.stop()
-        XCTAssertGreaterThanOrEqual(Date().timeIntervalSince(began), 2)
+        let elapsed = Date().timeIntervalSince(began)
+        XCTAssertGreaterThanOrEqual(elapsed, 2)
+        XCTAssertLessThan(elapsed, 3.5, "stop() needed the watchdog; SIGKILL escalation is broken")
         XCTAssertEqual(server.state, .stopped)
+        XCTAssertEqual(kill(pid, 0), -1, "child \(pid) survived stop()")
     }
 
     func testStopThenStartIgnoresTheOldChildsExit() async throws {
@@ -140,13 +158,18 @@ final class ServerProcessTests: XCTestCase {
     }
 
     func testOutputIsAppendedToTheLogFile() async throws {
+        let logDir = dir.appendingPathComponent("logs")
+        try FileManager.default.createDirectory(at: logDir, withIntermediateDirectories: true)
+        let previousRun = "previous run\n"
+        try previousRun.write(to: logDir.appendingPathComponent("server.log"), atomically: true, encoding: .utf8)
         let exe = try script("echo out\necho err >&2\nexec sleep 30\n")
-        let server = ServerProcess(executableURL: exe, logURL: dir.appendingPathComponent("logs/server.log"))
+        let server = ServerProcess(executableURL: exe, logURL: logDir.appendingPathComponent("server.log"))
         server.start(port: 1)
         try await waitUntil(timeout: 2) {
             let text = self.read("logs/server.log")
             return text.contains("out") && text.contains("err")
         }
         server.stop()
+        XCTAssertTrue(read("logs/server.log").hasPrefix(previousRun), "earlier log content was overwritten")
     }
 }
