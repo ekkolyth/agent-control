@@ -14,8 +14,9 @@ swift build --package-path "$DESKTOP_DIR"
 SWIFT_BIN="$(swift build --package-path "$DESKTOP_DIR" --show-bin-path)/AgentControl"
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$DESKTOP_DIR/Resources/Info.plist" "$APP/Contents/Info.plist"
+cp "$DESKTOP_DIR/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 cp "$SWIFT_BIN" "$APP/Contents/MacOS/Agent Control"
 cp apps/server/dist/agent-control-server "$APP/Contents/MacOS/agent-control-server"
 
