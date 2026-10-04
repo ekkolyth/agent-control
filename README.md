@@ -9,6 +9,7 @@ browser tab.
 bun install
 miso dev   # server on http://127.0.0.1:3660, --port to change
 miso ext   # build the extension into ~/Documents/agent-control-extension
+miso app   # build and run the menu bar app unsigned, with its server log here
 ```
 
 Load that directory once via `chrome://extensions` → Developer mode → Load
