@@ -12,7 +12,8 @@ function pendingChangesets(repoRoot: string = REPO_ROOT): string[] {
     .sort()
 }
 
-const RELEASED_PACKAGE = '@agent-control/desktop'
+// versioned together as one fixed group and shipped in the same release
+const RELEASED_PACKAGES = ['@agent-control/desktop', '@agent-control/extension']
 
 // the frontmatter lines name the packages a changeset bumps
 function bumpedPackages(changeset: string): string[] {
@@ -23,18 +24,17 @@ function bumpedPackages(changeset: string): string[] {
     .filter((name): name is string => name !== undefined)
 }
 
-// only the desktop app is versioned and shipped; a bump to anything else would
-// be consumed by the release and never committed
-function assertOnlyDesktopChangesets(repoRoot: string = REPO_ROOT): void {
+// a bump to anything else would be consumed by the release and never committed
+function assertOnlyReleasedChangesets(repoRoot: string = REPO_ROOT): void {
   for (const name of pendingChangesets(repoRoot)) {
     const changeset = readFileSync(
       resolve(repoRoot, '.changeset', name),
       'utf8'
     )
     for (const pkg of bumpedPackages(changeset)) {
-      if (pkg !== RELEASED_PACKAGE) {
+      if (!RELEASED_PACKAGES.includes(pkg)) {
         throw new Error(
-          `${name} bumps ${pkg}; only ${RELEASED_PACKAGE} is released`
+          `${name} bumps ${pkg}; only ${RELEASED_PACKAGES.join(' and ')} are released`
         )
       }
     }
@@ -68,7 +68,7 @@ function changelogSection(changelog: string, version: string): string {
 
 export {
   applyChangesets,
-  assertOnlyDesktopChangesets,
+  assertOnlyReleasedChangesets,
   changelogSection,
   pendingChangesets,
 }

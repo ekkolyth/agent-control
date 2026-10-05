@@ -42,8 +42,10 @@ function setUp(): { remote: string; repo: string; desktop: string } {
 
   const seed = clone(remote)
   mkdirSync(join(seed, 'apps', 'desktop'), { recursive: true })
+  mkdirSync(join(seed, 'apps', 'extension'), { recursive: true })
   mkdirSync(join(seed, '.changeset'))
   writeFileSync(join(seed, 'apps', 'desktop', 'package.json'), '0.0.0\n')
+  writeFileSync(join(seed, 'apps', 'extension', 'package.json'), '0.0.0\n')
   writeFileSync(join(seed, '.changeset', 'first.md'), 'a change\n')
   git(seed, 'add', '--all')
   git(seed, 'commit', '--quiet', '-m', 'seed')
@@ -53,12 +55,15 @@ function setUp(): { remote: string; repo: string; desktop: string } {
   const desktop = join(repo, 'apps', 'desktop')
   writeFileSync(join(desktop, 'package.json'), '0.1.0\n')
   writeFileSync(join(desktop, 'CHANGELOG.md'), '## 0.1.0\n')
+  const extension = join(repo, 'apps', 'extension')
+  writeFileSync(join(extension, 'package.json'), '0.1.0\n')
+  writeFileSync(join(extension, 'CHANGELOG.md'), '## 0.1.0\n')
   rmSync(join(repo, '.changeset', 'first.md'))
   return { remote, repo, desktop }
 }
 
 describe('pushBumpAndTag', () => {
-  it('pushes the bump commit and its tag to main together', () => {
+  it('pushes the app and extension bump and its tag to main together', () => {
     const { remote, repo, desktop } = setUp()
 
     const sha = pushBumpAndTag('0.1.0', desktop)
@@ -72,6 +77,8 @@ describe('pushBumpAndTag', () => {
         '.changeset/first.md',
         'apps/desktop/CHANGELOG.md',
         'apps/desktop/package.json',
+        'apps/extension/CHANGELOG.md',
+        'apps/extension/package.json',
       ])
     )
   })
