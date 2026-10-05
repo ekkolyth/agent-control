@@ -4,6 +4,7 @@ import { appendFileSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import {
   applyChangesets,
+  assertOnlyDesktopChangesets,
   changelogSection,
   pendingChangesets,
 } from './changesets'
@@ -28,6 +29,8 @@ if (pending.length === 0) {
   writeOutput('', '')
   process.exit(0)
 }
+
+assertOnlyDesktopChangesets()
 
 // only to read the resulting version and notes; the release job re-applies
 // them on its own checkout and commits the result

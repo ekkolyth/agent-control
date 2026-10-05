@@ -2,23 +2,35 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { changelogSection, pendingChangesets } from './changesets'
+import {
+  assertOnlyDesktopChangesets,
+  changelogSection,
+  pendingChangesets,
+} from './changesets'
+
+const dirs: string[] = []
+
+function tempDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'changesets-'))
+  dirs.push(dir)
+  return dir
+}
+
+afterEach(() => {
+  for (const dir of dirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+function writeChangeset(dir: string, name: string, frontmatter: string): void {
+  mkdirSync(join(dir, '.changeset'), { recursive: true })
+  writeFileSync(
+    join(dir, '.changeset', name),
+    `---\n${frontmatter}\n---\n\nA change\n`
+  )
+}
 
 describe('pendingChangesets', () => {
-  const dirs: string[] = []
-
-  function tempDir(): string {
-    const dir = mkdtempSync(join(tmpdir(), 'changesets-'))
-    dirs.push(dir)
-    return dir
-  }
-
-  afterEach(() => {
-    for (const dir of dirs.splice(0)) {
-      rmSync(dir, { recursive: true, force: true })
-    }
-  })
-
   it('lists changeset files and ignores the readme and config', () => {
     const dir = tempDir()
     mkdirSync(join(dir, '.changeset'))
@@ -33,6 +45,28 @@ describe('pendingChangesets', () => {
     mkdirSync(join(dir, '.changeset'))
     writeFileSync(join(dir, '.changeset', 'README.md'), '')
     expect(pendingChangesets(dir)).toEqual([])
+  })
+})
+
+describe('assertOnlyDesktopChangesets', () => {
+  it('accepts changesets that bump only the desktop app', () => {
+    const dir = tempDir()
+    writeChangeset(dir, 'a.md', "'@agent-control/desktop': minor")
+    writeChangeset(dir, 'b.md', '"@agent-control/desktop": patch')
+    expect(() => assertOnlyDesktopChangesets(dir)).not.toThrow()
+  })
+
+  it('rejects a changeset that bumps another package, naming it', () => {
+    const dir = tempDir()
+    writeChangeset(dir, 'a.md', "'@agent-control/desktop': minor")
+    writeChangeset(
+      dir,
+      'b.md',
+      "'@agent-control/desktop': patch\n'@agent-control/server': patch"
+    )
+    expect(() => assertOnlyDesktopChangesets(dir)).toThrow(
+      'b.md bumps @agent-control/server'
+    )
   })
 })
 

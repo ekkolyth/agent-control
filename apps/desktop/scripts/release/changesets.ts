@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { REPO_ROOT } from './lib'
 
@@ -10,6 +10,35 @@ function pendingChangesets(repoRoot: string = REPO_ROOT): string[] {
   return readdirSync(dir)
     .filter((name) => name.endsWith('.md') && name !== 'README.md')
     .sort()
+}
+
+const RELEASED_PACKAGE = '@agent-control/desktop'
+
+// the frontmatter lines name the packages a changeset bumps
+function bumpedPackages(changeset: string): string[] {
+  const frontmatter = /^---\n([\s\S]*?)\n---/.exec(changeset)?.[1] ?? ''
+  return frontmatter
+    .split('\n')
+    .map((line) => /^\s*['"]?([^'":]+?)['"]?\s*:/.exec(line)?.[1])
+    .filter((name): name is string => name !== undefined)
+}
+
+// only the desktop app is versioned and shipped; a bump to anything else would
+// be consumed by the release and never committed
+function assertOnlyDesktopChangesets(repoRoot: string = REPO_ROOT): void {
+  for (const name of pendingChangesets(repoRoot)) {
+    const changeset = readFileSync(
+      resolve(repoRoot, '.changeset', name),
+      'utf8'
+    )
+    for (const pkg of bumpedPackages(changeset)) {
+      if (pkg !== RELEASED_PACKAGE) {
+        throw new Error(
+          `${name} bumps ${pkg}; only ${RELEASED_PACKAGE} is released`
+        )
+      }
+    }
+  }
 }
 
 // consumes the changesets: bumps package.json and writes CHANGELOG.md
@@ -37,4 +66,9 @@ function changelogSection(changelog: string, version: string): string {
   return (end === -1 ? rest : rest.slice(0, end)).join('\n').trim()
 }
 
-export { applyChangesets, changelogSection, pendingChangesets }
+export {
+  applyChangesets,
+  assertOnlyDesktopChangesets,
+  changelogSection,
+  pendingChangesets,
+}
