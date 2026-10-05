@@ -28,41 +28,40 @@ function remoteTagExists(tag: string, cwd: string = ROOT): boolean {
   return true
 }
 
-// commits the bump and tags it, then pushes both in one atomic push so main and
-// the tag can't disagree; if main moved since this run's commit the push is
-// rejected and nothing lands, leaving the changesets for the next run
-function pushBumpAndTag(version: string, cwd: string = ROOT): string {
+// commits the bumps and tags them, then pushes the commit and every tag in one
+// atomic push so main and the tags can't disagree; if main moved since this
+// run's commit the push is rejected and nothing lands, leaving the changesets
+// for the next run
+function pushBumpAndTags(
+  message: string,
+  tags: string[],
+  cwd: string = ROOT
+): string {
   run('git', ['config', 'user.name', 'github-actions[bot]'], cwd)
   run(
     'git',
     ['config', 'user.email', 'github-actions[bot]@users.noreply.github.com'],
     cwd
   )
-  // both bumps, their changelogs, and the changeset files they consumed
+  // each app's bump, its changelog, and the changeset files consumed
+  run('git', ['add', '--all', '--', '..', '../../.changeset'], cwd)
+  run('git', ['commit', '-m', `${message} [skip ci]`], cwd)
+
+  for (const tag of tags) {
+    run('git', ['tag', '--annotate', tag, '--message', tag], cwd)
+  }
   run(
     'git',
     [
-      'add',
-      '--all',
-      '--',
-      'package.json',
-      'CHANGELOG.md',
-      '../extension/package.json',
-      '../extension/CHANGELOG.md',
-      '../../.changeset',
+      'push',
+      '--atomic',
+      'origin',
+      'HEAD:refs/heads/main',
+      ...tags.map((tag) => `refs/tags/${tag}`),
     ],
-    cwd
-  )
-  run('git', ['commit', '-m', `[release] ${version} [skip ci]`], cwd)
-
-  const tag = `v${version}`
-  run('git', ['tag', '--annotate', tag, '--message', tag], cwd)
-  run(
-    'git',
-    ['push', '--atomic', 'origin', 'HEAD:refs/heads/main', `refs/tags/${tag}`],
     cwd
   )
   return headSha(cwd)
 }
 
-export { pushBumpAndTag, remoteTagExists }
+export { pushBumpAndTags, remoteTagExists }

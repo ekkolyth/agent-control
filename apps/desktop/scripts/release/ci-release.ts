@@ -3,20 +3,39 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { applyChangesets } from './changesets'
-import { pushBumpAndTag, remoteTagExists } from './commit-bump'
-import { REPO_ROOT, ROOT, readPackageJsonVersion, run } from './lib'
+import { pushBumpAndTags, remoteTagExists } from './commit-bump'
+import {
+  RELEASED_APPS,
+  REPO_ROOT,
+  type ReleasedApp,
+  ROOT,
+  readPackageJsonVersion,
+  releaseTag,
+  run,
+} from './lib'
 
 // a stray local run would push to main and publish a GitHub release
 if (!process.env.CI) {
   throw new Error('ci-release is CI-only — it publishes a GitHub release')
 }
 
-const version = process.env.VERSION
-if (!version) throw new Error('VERSION unset — the version job computes it')
-const notes = process.env.RELEASE_NOTES ?? ''
-const tag = `v${version}`
+type Release = {
+  app: ReleasedApp
+  version: string
+  notes: string
+  tag: string
+}
 
-function releaseExists(): boolean {
+// the version job sets <APP>_VERSION only for apps its changesets bumped
+const releases: Release[] = RELEASED_APPS.flatMap((app) => {
+  const prefix = app.key.toUpperCase()
+  const version = process.env[`${prefix}_VERSION`]
+  if (!version) return []
+  const notes = process.env[`${prefix}_NOTES`] ?? ''
+  return [{ app, version, notes, tag: releaseTag(app, version) }]
+})
+
+function releaseExists(tag: string): boolean {
   const result = spawnSync('gh', ['release', 'view', tag], { cwd: ROOT })
   if (result.error) throw result.error
   return result.status === 0
@@ -27,63 +46,71 @@ function requireFile(path: string): string {
   return path
 }
 
-function buildAssets(): string[] {
-  run('bash', ['scripts/build.sh'])
-  run('bun', ['run', '--filter', '@agent-control/extension', 'zip'], REPO_ROOT)
-  return [
-    requireFile(resolve(ROOT, 'build', `Agent-Control-${version}-arm64.zip`)),
-    // named from the extension's own version, so a missing file also means the
-    // fixed group failed to keep it in step with the app
-    requireFile(
-      resolve(
-        REPO_ROOT,
-        'apps/extension/.output',
-        `Agent-Control-Extension-${version}.zip`
-      )
-    ),
-  ]
+function buildAsset({ app, version }: Release): string {
+  if (app.key === 'desktop') {
+    run('bash', ['scripts/build.sh'])
+    return requireFile(
+      resolve(ROOT, 'build', `Agent-Control-${version}-arm64.zip`)
+    )
+  }
+  run('bun', ['run', '--filter', app.name, 'zip'], REPO_ROOT)
+  return requireFile(
+    resolve(app.dir, '.output', `Agent-Control-Extension-${version}.zip`)
+  )
 }
 
-if (remoteTagExists(tag)) {
-  if (releaseExists()) {
-    console.log(`${tag} is already released — nothing to do`)
-    process.exit(0)
-  }
-  // an earlier attempt pushed the bump and tag but never published; ship the
-  // tagged commit rather than applying the changesets a second time
+// the bump commit pushes every tag at once, so either all are on the remote or
+// none are
+const firstTag = releases[0]?.tag
+if (!firstTag) {
+  throw new Error('no app versions set — the version job computes them')
+}
+if (remoteTagExists(firstTag)) {
+  // an earlier attempt pushed the bump and tags but didn't finish publishing;
+  // ship the tagged commit rather than applying the changesets a second time
   run('git', [
     'fetch',
     '--force',
     'origin',
-    `refs/tags/${tag}:refs/tags/${tag}`,
+    ...releases.map(({ tag }) => `refs/tags/${tag}:refs/tags/${tag}`),
   ])
-  run('git', ['checkout', '--detach', tag])
+  run('git', ['checkout', '--detach', firstTag])
 } else {
   applyChangesets()
-  const applied = readPackageJsonVersion()
-  if (applied !== version) {
-    throw new Error(
-      `changesets produced ${applied} here but ${version} in the version job`
-    )
+  for (const { app, version } of releases) {
+    const applied = readPackageJsonVersion(app.dir)
+    if (applied !== version) {
+      throw new Error(
+        `changesets produced ${app.name} ${applied} here but ${version} in the version job`
+      )
+    }
   }
 }
 
-const assets = buildAssets()
+const unpublished = releases
+  .filter(({ tag }) => !releaseExists(tag))
+  .map((release) => ({ ...release, asset: buildAsset(release) }))
 
-// pushed after the build, so main only advances for a version that built,
-// signed, and notarized
-if (!remoteTagExists(tag)) pushBumpAndTag(version)
+// pushed after the builds, so main only advances for versions that built (and,
+// for the app, signed and notarized)
+if (!remoteTagExists(firstTag)) {
+  pushBumpAndTags(
+    `[release] ${releases.map(({ app, version }) => `${app.key} ${version}`).join(', ')}`,
+    releases.map(({ tag }) => tag)
+  )
+}
 
-run('gh', [
-  'release',
-  'create',
-  tag,
-  ...assets,
-  '--verify-tag',
-  '--title',
-  tag,
-  '--notes',
-  notes,
-])
-
-console.log(`\n✓ ${tag} released`)
+for (const { tag, notes, asset } of unpublished) {
+  run('gh', [
+    'release',
+    'create',
+    tag,
+    asset,
+    '--verify-tag',
+    '--title',
+    tag,
+    '--notes',
+    notes,
+  ])
+  console.log(`✓ ${tag} released`)
+}

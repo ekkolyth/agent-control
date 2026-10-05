@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { pushBumpAndTag, remoteTagExists } from './commit-bump'
+import { pushBumpAndTags, remoteTagExists } from './commit-bump'
 
 const dirs: string[] = []
 
@@ -62,14 +62,23 @@ function setUp(): { remote: string; repo: string; desktop: string } {
   return { remote, repo, desktop }
 }
 
-describe('pushBumpAndTag', () => {
-  it('pushes the app and extension bump and its tag to main together', () => {
+describe('pushBumpAndTags', () => {
+  it('pushes the bump commit and every release tag to main together', () => {
     const { remote, repo, desktop } = setUp()
 
-    const sha = pushBumpAndTag('0.1.0', desktop)
+    const sha = pushBumpAndTags(
+      'release desktop and extension',
+      ['@agent-control/desktop@0.1.0', '@agent-control/extension@0.1.0'],
+      desktop
+    )
 
     expect(git(remote, 'rev-parse', 'main')).toBe(sha)
-    expect(git(remote, 'rev-parse', 'v0.1.0^{commit}')).toBe(sha)
+    expect(
+      git(remote, 'rev-parse', '@agent-control/desktop@0.1.0^{commit}')
+    ).toBe(sha)
+    expect(
+      git(remote, 'rev-parse', '@agent-control/extension@0.1.0^{commit}')
+    ).toBe(sha)
     expect(
       git(repo, 'show', '--name-only', '--format=', sha).split('\n')
     ).toEqual(
@@ -83,7 +92,7 @@ describe('pushBumpAndTag', () => {
     )
   })
 
-  it('pushes neither the bump nor the tag when main has moved on', () => {
+  it('pushes neither the bump nor any tag when main has moved on', () => {
     const { remote, desktop } = setUp()
     const other = clone(remote)
     writeFileSync(join(other, 'later.txt'), 'merged meanwhile\n')
@@ -92,20 +101,26 @@ describe('pushBumpAndTag', () => {
     git(other, 'push', '--quiet', 'origin', 'HEAD:main')
     const movedMain = git(remote, 'rev-parse', 'main')
 
-    expect(() => pushBumpAndTag('0.1.0', desktop)).toThrow()
+    expect(() =>
+      pushBumpAndTags(
+        'release',
+        ['@agent-control/desktop@0.1.0', '@agent-control/extension@0.1.0'],
+        desktop
+      )
+    ).toThrow()
 
     expect(git(remote, 'rev-parse', 'main')).toBe(movedMain)
-    expect(git(remote, 'tag', '--list', 'v0.1.0')).toBe('')
+    expect(git(remote, 'tag', '--list')).toBe('')
   })
 })
 
 describe('remoteTagExists', () => {
   it('sees a tag only once it is on the remote', () => {
     const { desktop } = setUp()
-    expect(remoteTagExists('v0.1.0', desktop)).toBe(false)
+    expect(remoteTagExists('@agent-control/desktop@0.1.0', desktop)).toBe(false)
 
-    pushBumpAndTag('0.1.0', desktop)
+    pushBumpAndTags('release', ['@agent-control/desktop@0.1.0'], desktop)
 
-    expect(remoteTagExists('v0.1.0', desktop)).toBe(true)
+    expect(remoteTagExists('@agent-control/desktop@0.1.0', desktop)).toBe(true)
   })
 })

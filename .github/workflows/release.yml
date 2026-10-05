@@ -12,8 +12,10 @@ jobs:
     permissions:
       contents: read
     outputs:
-      version: ${{ steps.resolve.outputs.version }}
-      notes: ${{ steps.resolve.outputs.notes }}
+      desktop_version: ${{ steps.resolve.outputs.desktop_version }}
+      desktop_notes: ${{ steps.resolve.outputs.desktop_notes }}
+      extension_version: ${{ steps.resolve.outputs.extension_version }}
+      extension_notes: ${{ steps.resolve.outputs.extension_notes }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -37,7 +39,7 @@ jobs:
 
   release:
     needs: version
-    if: needs.version.outputs.version != ''
+    if: needs.version.outputs.desktop_version != '' || needs.version.outputs.extension_version != ''
     runs-on: macos-latest
     timeout-minutes: 30
     environment: release
@@ -104,8 +106,10 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.version.outputs.version }}
-          RELEASE_NOTES: ${{ needs.version.outputs.notes }}
+          DESKTOP_VERSION: ${{ needs.version.outputs.desktop_version }}
+          DESKTOP_NOTES: ${{ needs.version.outputs.desktop_notes }}
+          EXTENSION_VERSION: ${{ needs.version.outputs.extension_version }}
+          EXTENSION_NOTES: ${{ needs.version.outputs.extension_notes }}
         run: bun apps/desktop/scripts/release/ci-release.ts
 
       - name: Cleanup

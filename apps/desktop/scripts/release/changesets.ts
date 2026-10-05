@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { REPO_ROOT } from './lib'
+import { RELEASED_APPS, REPO_ROOT } from './lib'
 
 // a merge releases only when it carries at least one of these
 function pendingChangesets(repoRoot: string = REPO_ROOT): string[] {
@@ -12,8 +12,7 @@ function pendingChangesets(repoRoot: string = REPO_ROOT): string[] {
     .sort()
 }
 
-// versioned together as one fixed group and shipped in the same release
-const RELEASED_PACKAGES = ['@agent-control/desktop', '@agent-control/extension']
+const RELEASED_PACKAGES = RELEASED_APPS.map((app) => app.name)
 
 // the frontmatter lines name the packages a changeset bumps
 function bumpedPackages(changeset: string): string[] {

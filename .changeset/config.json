@@ -6,7 +6,7 @@
     "changelog": "@changesets/cli/changelog",
     "commit": false,
     "ignore": [],
-    "fixed": [["@agent-control/desktop", "@agent-control/extension"]],
+    "fixed": [],
     "linked": [],
     "updateInternalDependencies": "patch",
     "privatePackages": {
