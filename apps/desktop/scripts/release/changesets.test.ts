@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
-  assertOnlyDesktopChangesets,
+  assertOnlyReleasedChangesets,
   changelogSection,
   pendingChangesets,
 } from './changesets'
@@ -48,12 +48,12 @@ describe('pendingChangesets', () => {
   })
 })
 
-describe('assertOnlyDesktopChangesets', () => {
-  it('accepts changesets that bump only the desktop app', () => {
+describe('assertOnlyReleasedChangesets', () => {
+  it('accepts changesets that bump the desktop app or the extension', () => {
     const dir = tempDir()
     writeChangeset(dir, 'a.md', "'@agent-control/desktop': minor")
-    writeChangeset(dir, 'b.md', '"@agent-control/desktop": patch')
-    expect(() => assertOnlyDesktopChangesets(dir)).not.toThrow()
+    writeChangeset(dir, 'b.md', '"@agent-control/extension": patch')
+    expect(() => assertOnlyReleasedChangesets(dir)).not.toThrow()
   })
 
   it('rejects a changeset that bumps another package, naming it', () => {
@@ -64,7 +64,7 @@ describe('assertOnlyDesktopChangesets', () => {
       'b.md',
       "'@agent-control/desktop': patch\n'@agent-control/server': patch"
     )
-    expect(() => assertOnlyDesktopChangesets(dir)).toThrow(
+    expect(() => assertOnlyReleasedChangesets(dir)).toThrow(
       'b.md bumps @agent-control/server'
     )
   })

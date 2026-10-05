@@ -38,10 +38,19 @@ function pushBumpAndTag(version: string, cwd: string = ROOT): string {
     ['config', 'user.email', 'github-actions[bot]@users.noreply.github.com'],
     cwd
   )
-  // the bump, its changelog, and the changeset files it consumed
+  // both bumps, their changelogs, and the changeset files they consumed
   run(
     'git',
-    ['add', '--all', '--', 'package.json', 'CHANGELOG.md', '../../.changeset'],
+    [
+      'add',
+      '--all',
+      '--',
+      'package.json',
+      'CHANGELOG.md',
+      '../extension/package.json',
+      '../extension/CHANGELOG.md',
+      '../../.changeset',
+    ],
     cwd
   )
   run('git', ['commit', '-m', `[release] ${version} [skip ci]`], cwd)
