@@ -189,6 +189,9 @@ const test = base.extend<Fixtures>({
 
     await use(`http://127.0.0.1:${address.port}/`)
 
+    // the browser outlives this fixture and still holds its connection open;
+    // node 22's close() waits on it, so drop it rather than hang until timeout
+    server.closeAllConnections()
     await new Promise<void>((resolve, reject) => {
       server.close((error) => (error ? reject(error) : resolve()))
     })
