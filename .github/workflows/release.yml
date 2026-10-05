@@ -41,12 +41,18 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     environment: release
+    # one release at a time; a queued run waits rather than cancelling one
+    # that may already have pushed its bump
+    concurrency:
+      group: release
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
+      # the commit the version job resolved, not whatever main is by now
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          ref: main
+          ref: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 

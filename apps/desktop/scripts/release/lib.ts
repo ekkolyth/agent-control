@@ -12,8 +12,8 @@ function readPackageJsonVersion(): string {
   return match[1]
 }
 
-function run(cmd: string, args: string[]): void {
-  const result = spawnSync(cmd, args, { cwd: ROOT, stdio: 'inherit' })
+function run(cmd: string, args: string[], cwd: string = ROOT): void {
+  const result = spawnSync(cmd, args, { cwd, stdio: 'inherit' })
   if (result.error) throw result.error
   if (result.status !== 0) {
     throw new Error(
