@@ -124,7 +124,13 @@ exports[`tools > json schema for every tool is stable 1`] = `
   "browser_screenshot": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
-    "properties": {},
+    "properties": {
+      "filename": {
+        "description": "Absolute or ~/ path to also save the PNG to. Only pass this when the user asked for the screenshot to be saved; if they gave no path, use \`.screenshots/<name>.png\` at the root of the repository you are working in, and make sure \`.screenshots\` is gitignored there.",
+        "minLength": 1,
+        "type": "string",
+      },
+    },
     "type": "object",
   },
   "browser_select_option": {
