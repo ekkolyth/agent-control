@@ -37,6 +37,7 @@ yarn-error.log*
 
 # Misc
 .DS_Store
+.screenshots
 *.pem
 
 # Agents

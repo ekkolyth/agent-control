@@ -18,6 +18,8 @@ const END_ELEMENT_DESCRIPTION =
   'Human-readable target element description used to obtain the permission to interact with the element'
 const TEXT_DESCRIPTION = 'Text to type into the element'
 const SUBMIT_DESCRIPTION = 'Whether to submit entered text (press Enter after)'
+const FILENAME_DESCRIPTION =
+  'Absolute or ~/ path to also save the PNG to. Only pass this when the user asked for the screenshot to be saved; if they gave no path, use `.screenshots/<name>.png` at the root of the repository you are working in, and make sure `.screenshots` is gitignored there.'
 const VALUES_DESCRIPTION =
   'Array of values to select in the dropdown. This can be a single value or multiple values.'
 
@@ -119,7 +121,9 @@ const toolDefinitions = [
   {
     name: 'browser_screenshot',
     description: 'Take a screenshot of the current page',
-    inputShape: {},
+    inputShape: {
+      filename: z.string().min(1).optional().describe(FILENAME_DESCRIPTION),
+    },
   },
   {
     name: 'browser_get_console_logs',

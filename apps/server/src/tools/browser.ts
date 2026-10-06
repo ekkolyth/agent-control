@@ -1,3 +1,5 @@
+import { homedir } from 'node:os'
+import path from 'node:path'
 import {
   type CommandName,
   type CommandRequest,
@@ -65,6 +67,14 @@ function errorText(code: ErrorCode, message: string): string {
     case 'INTERNAL':
       return `Extension error: ${message}`
   }
+}
+
+// relative paths would land under the daemon's cwd, not the agent's repo
+function resolveSavePath(filename: string): string | undefined {
+  if (filename === '~' || filename.startsWith('~/')) {
+    return path.join(homedir(), filename.slice(1))
+  }
+  return path.isAbsolute(filename) ? filename : undefined
 }
 
 function formatZodMessage(error: z.ZodError): string {
@@ -239,11 +249,33 @@ function registerBrowserTools(
         }
 
         if (entry.kind === 'image') {
+          const { filename } = toolInputSchemas.browser_screenshot.parse(args)
+          const target =
+            filename === undefined ? undefined : resolveSavePath(filename)
+          if (filename !== undefined && target === undefined) {
+            return errorResult(
+              `filename must be an absolute or ~/ path, got: ${filename}`
+            )
+          }
           const result = await sendCommand(bridge, 'screenshot', {})
+          const image = {
+            type: 'image' as const,
+            data: result.data,
+            mimeType: 'image/png',
+          }
+          if (target === undefined) {
+            return { content: [image] }
+          }
+          try {
+            // creates missing parent directories
+            await Bun.write(target, Buffer.from(result.data, 'base64'))
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : String(error)
+            return errorResult(`Could not save to ${target}: ${message}`)
+          }
           return {
-            content: [
-              { type: 'image', data: result.data, mimeType: 'image/png' },
-            ],
+            content: [image, { type: 'text', text: `Saved to ${target}` }],
           }
         }
 

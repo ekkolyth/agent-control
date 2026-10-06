@@ -1,3 +1,6 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { commands, ProtocolError } from '@agent-control/protocol'
 import { describe, expect, test, vi } from 'vitest'
 import { captureDestination, parseLogLines } from '../../tests/log-capture'
@@ -218,6 +221,31 @@ describe('browser tools', () => {
       data: 'iVBOR',
       mimeType: 'image/png',
     })
+  })
+
+  test('screenshot with filename writes the png and reports the path', async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), 'agent-control-'))
+    const filename = path.join(dir, 'nested', 'shot.png')
+    const png = Buffer.from('png bytes')
+    const { registry } = setup(
+      vi.fn(async () => ({ data: png.toString('base64') }))
+    )
+    const out = await registry.get('browser_screenshot')!({ filename })
+    expect(out.content[1]).toEqual({
+      type: 'text',
+      text: `Saved to ${filename}`,
+    })
+    expect(await readFile(filename)).toEqual(png)
+    await rm(dir, { recursive: true })
+  })
+
+  test('screenshot rejects a relative filename without capturing', async () => {
+    const { registry, send } = setup(vi.fn(async () => ({ data: 'iVBOR' })))
+    const out = await registry.get('browser_screenshot')!({
+      filename: '.screenshots/shot.png',
+    })
+    expect(out.isError).toBe(true)
+    expect(send).not.toHaveBeenCalled()
   })
 
   test('console logs are one json line per entry', async () => {
